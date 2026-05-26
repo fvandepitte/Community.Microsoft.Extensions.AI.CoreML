@@ -59,10 +59,62 @@ Transcript pre-loaded — no re-inference on history, matches `IChatClient` cont
 - [x] Output path: `src/Community.Microsoft.Extensions.AI.CoreML/runtimes/osx-arm64/native/`
 - [x] `.csproj` updated to embed the dylib as a NuGet native runtime asset (conditional on file existing)
 
-### 1.4 Investigate availability guard ❓
+### 1.4 Investigate availability guard 🔄
 
-- [ ] Confirm `SystemLanguageModel.isAvailable` API shape on macOS 26 beta (may have changed from 15)
-- [ ] Confirm whether a Hardened Runtime entitlement is required for third-party callers
+#### What is confirmed (no hardware needed)
+
+At **WWDC 2025**, Apple opened the Foundation Models framework to all third-party developers:
+
+| Question | Answer |
+|---|---|
+| `SystemLanguageModel.isAvailable` API shape | ✅ Static `Bool` property — confirmed unchanged |
+| Restricted to Apple apps only? | ✅ **No** — opened to all third-party devs at WWDC 2025 |
+| Special entitlement approval required? | ✅ **No** — standard Apple Developer Program membership is enough |
+| Minimum OS | macOS 26 ("Tahoe") on Apple Silicon |
+| Minimum Xcode | Xcode 26 |
+| Public beta | July 2025 |
+| Full release | September 2025 (with macOS 26) |
+
+#### What still needs testing on macOS 26 hardware
+
+The one open question is whether a **.NET host process** embedding the dylib must itself be **code-signed with a FoundationModels entitlement**. Normal native apps bundle the entitlement in their `.entitlements` file; a .NET process is a generic runtime, not a signed app bundle.
+
+**Steps to verify:**
+
+```sh
+# 1. Build the bridge
+make bridge
+
+# 2. Run the test .NET app on macOS 26 — check what aib_is_available() returns.
+#    If it crashes or returns false, inspect the system log:
+log show --predicate 'subsystem == "com.apple.FoundationModels"' --last 5m
+```
+
+**If the entitlement IS required on the host process**, sign the dylib with:
+
+```sh
+codesign --entitlements entitlements.plist -s "Apple Developer" \
+  src/Community.Microsoft.Extensions.AI.CoreML/runtimes/osx-arm64/native/libAppleIntelligenceBridge.dylib
+```
+
+Where `entitlements.plist` contains:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.developer.FoundationModels</key>
+    <true/>
+</dict>
+</plist>
+```
+
+- [x] Confirm `SystemLanguageModel.isAvailable` is a static Bool — ✅ confirmed
+- [x] Confirm framework is open to third-party developers — ✅ confirmed (WWDC 2025)
+- [ ] Test `aib_is_available()` from a .NET process on macOS 26 hardware
+- [ ] Confirm whether dylib / host process needs code-signing with the FoundationModels entitlement
 
 ---
 
