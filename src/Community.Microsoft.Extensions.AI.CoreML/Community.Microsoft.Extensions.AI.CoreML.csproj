@@ -16,4 +16,13 @@
     <InternalsVisibleTo Include="Community.Microsoft.Extensions.AI.CoreML.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Bundle the native bridge dylib for macOS arm64 in the NuGet package.
+         Run 'make bridge' from the repo root to build the dylib before packing. -->
+    <None Include="runtimes\osx-arm64\native\libAppleIntelligenceBridge.dylib"
+          Condition="Exists('runtimes\osx-arm64\native\libAppleIntelligenceBridge.dylib')"
+          Pack="true"
+          PackagePath="runtimes/osx-arm64/native/" />
+  </ItemGroup>
+
 </Project>

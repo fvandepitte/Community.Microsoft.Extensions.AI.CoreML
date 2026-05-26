@@ -29,58 +29,39 @@
 
 ---
 
-## Phase 1 — Native Bridge (Swift / C) ⬜
+## Phase 1 — Native Bridge (Swift / C) ✅
 
 The Foundation Models framework is Swift-only. To call it from C# we need a thin C-callable wrapper.
 
-### 1.1 Create the Swift bridge project
+### 1.1 Create the Swift bridge project ✅
 
-- [ ] Add `native/` folder to the repository
-- [ ] Create a Swift Package (`native/Package.swift`) that produces a dynamic library target (`AppleIntelligenceBridge`)
-- [ ] Set minimum deployment target: macOS 26
+- [x] Add `native/` folder to the repository
+- [x] Create a Swift Package (`native/Package.swift`) that produces a dynamic library target (`AppleIntelligenceBridge`)
+- [x] Set minimum deployment target: macOS 15 (runtime guard requires macOS 26+)
 
-### 1.2 Implement `@_cdecl` exported functions
+### 1.2 Implement `@_cdecl` exported functions ✅
 
-Implement the following C-callable functions in Swift:
+See `native/Sources/AppleIntelligenceBridge/Bridge.swift`.
 
-```swift
-// Session lifecycle
-@_cdecl("aib_session_create")
-public func aib_session_create() -> UnsafeRawPointer
+Both completion functions accept a **JSON string** of `{"role","content"}` objects (full
+conversation history). A fresh `LanguageModelSession` is built per-call with the
+Transcript pre-loaded — no re-inference on history, matches `IChatClient` contract.
 
-@_cdecl("aib_session_destroy")
-public func aib_session_destroy(_ session: UnsafeRawPointer)
+| Symbol | Description |
+|---|---|
+| `aib_is_available` | `SystemLanguageModel.isAvailable` |
+| `aib_complete` | Blocking; bridges async Swift → sync via `DispatchSemaphore` |
+| `aib_complete_streaming` | Streams cumulative snapshots; computes deltas by tracking previous content length |
 
-// Synchronous completion
-@_cdecl("aib_complete")
-public func aib_complete(
-    _ session: UnsafeRawPointer,
-    _ prompt: UnsafePointer<CChar>,
-    _ resultCallback: @convention(c) (UnsafePointer<CChar>?) -> Void
-)
+### 1.3 Build & package the dylib ✅
 
-// Streaming completion
-@_cdecl("aib_complete_streaming")
-public func aib_complete_streaming(
-    _ session: UnsafeRawPointer,
-    _ prompt: UnsafePointer<CChar>,
-    _ chunkCallback: @convention(c) (UnsafePointer<CChar>?, Bool) -> Void
-)
+- [x] `Makefile` at repo root — run `make bridge` to compile and copy the dylib
+- [x] Output path: `src/Community.Microsoft.Extensions.AI.CoreML/runtimes/osx-arm64/native/`
+- [x] `.csproj` updated to embed the dylib as a NuGet native runtime asset (conditional on file existing)
 
-// Model availability check
-@_cdecl("aib_is_available")
-public func aib_is_available() -> Bool
-```
+### 1.4 Investigate availability guard ❓
 
-### 1.3 Build & package the dylib
-
-- [ ] Add a `Makefile` / shell script to build `libAppleIntelligenceBridge.dylib` for `arm64`
-- [ ] Copy the output dylib to `src/Community.Microsoft.Extensions.AI.CoreML/runtimes/osx-arm64/native/`
-- [ ] Update `.csproj` to embed the dylib as a native runtime asset
-
-### 1.4 Investigate availability guard
-
-- [ ] Determine the exact `LanguageModelSession.isAvailable` API shape in macOS 26 beta
+- [ ] Confirm `SystemLanguageModel.isAvailable` API shape on macOS 26 beta (may have changed from 15)
 - [ ] Confirm whether a Hardened Runtime entitlement is required for third-party callers
 
 ---
