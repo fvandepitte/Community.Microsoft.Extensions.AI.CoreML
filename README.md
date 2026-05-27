@@ -34,6 +34,12 @@ The catch: Apple's Foundation Models framework is a Swift/Objective-C API. Exist
 | .NET | 8.0 or later |
 | Xcode (to build the native bridge) | 26 Beta 2 or later |
 
+### Runtime Guard Behavior
+
+- On macOS earlier than 26.0, native bridge calls fail fast with a clear unsupported-platform error.
+- `aib_is_available` returns `false` when the OS is below 26.0.
+- On supported systems, availability is checked against an instantiated `SystemLanguageModel`.
+
 ## Installation
 
 ```sh

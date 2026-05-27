@@ -8,11 +8,11 @@ flowchart TD
 
     subgraph dotnet["Community.Microsoft.Extensions.AI.CoreML  (C#, .NET 8+)"]
         ChatClient["AppleIntelligenceChatClient\n─ GetResponseAsync()\n─ GetStreamingResponseAsync()\n─ Dispose()"]
-        Interop["Interop/NativeMethods.cs\nInterop/SafeSessionHandle.cs\nPlatformGuard.cs"]
+        Interop["Interop/NativeMethods.cs\nPlatformGuard.cs"]
     end
 
     subgraph native["libAppleIntelligenceBridge.dylib  (Swift, macOS 26+)"]
-        Bridge["@_cdecl exported functions\n─ aib_session_create\n─ aib_session_destroy\n─ aib_complete\n─ aib_complete_streaming\n─ aib_is_available"]
+        Bridge["@_cdecl exported functions\n─ aib_is_available\n─ aib_complete\n─ aib_complete_streaming"]
     end
 
     subgraph apple["Apple Foundation Models framework  (macOS 26+, Apple Silicon)"]
@@ -33,7 +33,7 @@ flowchart TD
 
 The public entry point. Implements `IChatClient` from `Microsoft.Extensions.AI`.
 
-- Creates and holds a `SafeSessionHandle` wrapping the native `LanguageModelSession` pointer.
+- Uses stateless bridge calls; no native session pointer is retained on the C# side.
 - Converts `IList<ChatMessage>` into a prompt string for the Foundation Models API.
 - Maps native responses back to `ChatResponse` / `ChatResponseUpdate`.
 
@@ -48,23 +48,17 @@ internal static partial class NativeMethods
 {
     private const string LibName = "AppleIntelligenceBridge";
 
-    [LibraryImport(LibName, EntryPoint = "aib_session_create")]
-    internal static partial IntPtr SessionCreate();
-
-    [LibraryImport(LibName, EntryPoint = "aib_session_destroy")]
-    internal static partial void SessionDestroy(IntPtr session);
-
     [LibraryImport(LibName, EntryPoint = "aib_is_available")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static partial bool IsAvailable();
 
-    // Completion and streaming use delegate callbacks (see below)
+    [LibraryImport(LibName, EntryPoint = "aib_complete")]
+    internal static partial void Complete(...);
+
+    [LibraryImport(LibName, EntryPoint = "aib_complete_streaming")]
+    internal static partial void CompleteStreaming(...);
 }
 ```
-
-### `SafeSessionHandle`
-
-A `SafeHandle` subclass that owns the native session pointer and calls `aib_session_destroy` during finalization/disposal, preventing native memory leaks.
 
 ### Callback strategy for streaming
 
@@ -94,13 +88,12 @@ The bridge is intentionally minimal — all AI logic stays in Swift/Objective-C;
 
 | Pointer | Owned by | Freed by |
 |---|---|---|
-| Session pointer (`aib_session_create` return) | C# (`SafeSessionHandle`) | `aib_session_destroy` |
-| `CChar*` prompt passed in | C# | C# (stays valid for duration of call) |
+| `CChar*` messages JSON passed in | C# | C# (stays valid for duration of call) |
 | `CChar*` result passed to callback | Swift | Swift (copy before returning from callback) |
 
 ### Thread safety
 
-`LanguageModelSession` objects are not thread-safe. The C# `AppleIntelligenceChatClient` must not be shared across concurrent calls. Consumers should create one instance per conversation or use the `IChatClientBuilder` middleware to manage concurrency.
+The bridge is stateless across calls: each `aib_complete` / `aib_complete_streaming` invocation creates a fresh `LanguageModelSession` in Swift and does not expose a long-lived native session handle to C#.
 
 ---
 

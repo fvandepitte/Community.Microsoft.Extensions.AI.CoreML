@@ -25,6 +25,8 @@ private struct Message: Decodable {
     let content: String
 }
 
+private let unsupportedMacOSMessage = "Apple Intelligence requires macOS 26.0 or newer."
+
 // MARK: - Session builder
 
 /// Builds a LanguageModelSession from a decoded message list and extracts the
@@ -36,6 +38,7 @@ private struct Message: Decodable {
 ///   "user"      → Transcript.Prompt       (history entries)
 ///   "assistant" → Transcript.Response     (history entries)
 ///   last "user" → returned as finalPrompt (sent via respond / streamResponse)
+@available(macOS 26.0, *)
 private func buildSession(from messages: [Message]) throws -> (session: LanguageModelSession, prompt: String) {
     guard let last = messages.last, last.role == "user" else {
         throw BridgeError.invalidMessages("The last message must have role 'user'.")
@@ -102,7 +105,12 @@ private enum BridgeError: Error {
 /// Returns true if Apple Intelligence on-device models are available on this device.
 @_cdecl("aib_is_available")
 public func aib_is_available() -> Bool {
-    return SystemLanguageModel.isAvailable
+    guard #available(macOS 26.0, *) else {
+        return false
+    }
+
+    let model = SystemLanguageModel(guardrails: .default)
+    return model.isAvailable
 }
 
 /// Performs a blocking (non-streaming) chat completion.
@@ -116,8 +124,15 @@ public func aib_is_available() -> Bool {
 @_cdecl("aib_complete")
 public func aib_complete(
     _ messagesJson: UnsafePointer<CChar>,
-    _ callback: @convention(c) (UnsafePointer<CChar>?, UnsafePointer<CChar>?) -> Void
+    _ callback: @Sendable @convention(c) (UnsafePointer<CChar>?, UnsafePointer<CChar>?) -> Void
 ) {
+    guard #available(macOS 26.0, *) else {
+        unsupportedMacOSMessage.withCString { errPtr in
+            callback(nil, errPtr)
+        }
+        return
+    }
+
     let json = String(cString: messagesJson)
     let sema = DispatchSemaphore(value: 0)
 
@@ -153,8 +168,15 @@ public func aib_complete(
 @_cdecl("aib_complete_streaming")
 public func aib_complete_streaming(
     _ messagesJson: UnsafePointer<CChar>,
-    _ callback: @convention(c) (UnsafePointer<CChar>?, Bool, UnsafePointer<CChar>?) -> Void
+    _ callback: @Sendable @convention(c) (UnsafePointer<CChar>?, Bool, UnsafePointer<CChar>?) -> Void
 ) {
+    guard #available(macOS 26.0, *) else {
+        unsupportedMacOSMessage.withCString { errPtr in
+            callback(nil, true, errPtr)
+        }
+        return
+    }
+
     let json = String(cString: messagesJson)
     let sema = DispatchSemaphore(value: 0)
 

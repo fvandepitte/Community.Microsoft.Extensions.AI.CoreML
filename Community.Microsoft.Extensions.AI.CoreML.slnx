@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Community.Microsoft.Extensions.AI.CoreML.TestConsole/Community.Microsoft.Extensions.AI.CoreML.TestConsole.csproj" />
     <Project Path="src/Community.Microsoft.Extensions.AI.CoreML.Tests/Community.Microsoft.Extensions.AI.CoreML.Tests.csproj" />
     <Project Path="src/Community.Microsoft.Extensions.AI.CoreML/Community.Microsoft.Extensions.AI.CoreML.csproj" />
   </Folder>

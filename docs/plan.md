@@ -118,12 +118,12 @@ Where `entitlements.plist` contains:
 
 ---
 
-## Phase 2 — C# Interop Layer ⬜
+## Phase 2 — C# Interop Layer ✅
 
 ### 2.1 P/Invoke declarations (`src/.../Interop/`)
 
-- [ ] `NativeMethods.cs` — static `[LibraryImport]` / `[DllImport]` declarations matching the Swift C-bridge functions
-- [ ] `SafeSessionHandle.cs` — a `SafeHandle` wrapping the opaque session pointer, calling `aib_session_destroy` on dispose
+- [x] `NativeMethods.cs` — static `[LibraryImport]` declarations matching the stateless Swift C-bridge functions (`aib_is_available`, `aib_complete`, `aib_complete_streaming`)
+- [x] Session-pointer interop (`aib_session_create` / `aib_session_destroy`, `SafeSessionHandle`) removed from plan as not applicable to the current stateless bridge design
 
 ### 2.2 Platform guard ✅
 

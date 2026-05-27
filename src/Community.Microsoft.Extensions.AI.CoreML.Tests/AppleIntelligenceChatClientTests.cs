@@ -1,14 +1,12 @@
+using System.Text.Json;
 using Community.Microsoft.Extensions.AI.CoreML;
+using Community.Microsoft.Extensions.AI.CoreML.Interop;
 using Microsoft.Extensions.AI;
 
 namespace Community.Microsoft.Extensions.AI.CoreML.Tests;
 
 public class AppleIntelligenceChatClientTests
 {
-    // -------------------------------------------------------------------------
-    // Platform guard
-    // -------------------------------------------------------------------------
-
     [Fact]
     public void Constructor_ThrowsPlatformNotSupportedException_OnUnsupportedPlatform()
     {
@@ -22,10 +20,6 @@ public class AppleIntelligenceChatClientTests
         using var client = new AppleIntelligenceChatClient(new PassingPlatformValidator());
         Assert.NotNull(client);
     }
-
-    // -------------------------------------------------------------------------
-    // GetService
-    // -------------------------------------------------------------------------
 
     [Fact]
     public void GetService_ReturnsSelf_WhenRequestedTypeMatches()
@@ -57,9 +51,70 @@ public class AppleIntelligenceChatClientTests
         Assert.Null(result);
     }
 
-    // -------------------------------------------------------------------------
-    // Dispose
-    // -------------------------------------------------------------------------
+    [Fact]
+    public async Task GetResponseAsync_ReturnsAssistantText_FromBridge()
+    {
+        var bridge = new FakeBridge { CompletionResult = "bridge answer" };
+        using var client = new AppleIntelligenceChatClient(new PassingPlatformValidator(), bridge);
+
+        var response = await client.GetResponseAsync([new ChatMessage(ChatRole.User, "What is AI?")]);
+
+        Assert.Equal("bridge answer", response.Text);
+        Assert.Equal("bridge answer", Assert.Single(response.Messages).Text);
+        Assert.Equal(1, bridge.CompletionCallCount);
+    }
+
+    [Fact]
+    public async Task GetStreamingResponseAsync_YieldsIncrementalChunks_FromBridge()
+    {
+        var bridge = new FakeBridge { StreamingChunks = ["Hel", "lo", "!"] };
+        using var client = new AppleIntelligenceChatClient(new PassingPlatformValidator(), bridge);
+
+        var chunks = new List<string>();
+        await foreach (var update in client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "Say hello")]))
+        {
+            chunks.Add(update.Text);
+        }
+
+        Assert.Equal(["Hel", "lo", "!"], chunks);
+        Assert.Equal(1, bridge.StreamingCallCount);
+    }
+
+    [Fact]
+    public async Task GetResponseAsync_MergesInstructions_IntoSerializedSystemPayload()
+    {
+        var bridge = new FakeBridge { CompletionResult = "ok" };
+        using var client = new AppleIntelligenceChatClient(new PassingPlatformValidator(), bridge);
+
+        await client.GetResponseAsync(
+            [
+                new ChatMessage(ChatRole.System, "existing guidance"),
+                new ChatMessage(ChatRole.User, "Prompt"),
+            ],
+            new ChatOptions { Instructions = "extra guidance" });
+
+        using var document = JsonDocument.Parse(bridge.LastMessagesJson!);
+        var messages = document.RootElement.EnumerateArray().ToArray();
+
+        Assert.Equal(2, messages.Length);
+        Assert.Equal("system", messages[0].GetProperty("role").GetString());
+
+        var systemContent = messages[0].GetProperty("content").GetString();
+        Assert.Contains("existing guidance", systemContent);
+        Assert.Contains("extra guidance", systemContent);
+    }
+
+    [Fact]
+    public async Task GetResponseAsync_SurfacesBridgeErrors()
+    {
+        var bridge = new FakeBridge { CompletionException = new NotSupportedException("unsupported bridge") };
+        using var client = new AppleIntelligenceChatClient(new PassingPlatformValidator(), bridge);
+
+        var exception = await Assert.ThrowsAsync<NotSupportedException>(
+            () => client.GetResponseAsync([new ChatMessage(ChatRole.User, "Prompt")]));
+
+        Assert.Equal("unsupported bridge", exception.Message);
+    }
 
     [Fact]
     public async Task GetResponseAsync_ThrowsObjectDisposedException_AfterDispose()
@@ -84,28 +139,46 @@ public class AppleIntelligenceChatClientTests
             });
     }
 
-    // -------------------------------------------------------------------------
-    // Not-yet-implemented bridge
-    // -------------------------------------------------------------------------
-
-    [Fact]
-    public async Task GetResponseAsync_ThrowsNotImplementedException_WhenBridgeNotReady()
+    private sealed class FakeBridge : IAppleIntelligenceBridge
     {
-        using var client = new AppleIntelligenceChatClient(new PassingPlatformValidator());
+        public string? LastMessagesJson { get; private set; }
+        public string CompletionResult { get; init; } = string.Empty;
+        public Exception? CompletionException { get; init; }
+        public IReadOnlyList<string> StreamingChunks { get; init; } = [];
+        public Exception? StreamingException { get; init; }
+        public int CompletionCallCount { get; private set; }
+        public int StreamingCallCount { get; private set; }
 
-        await Assert.ThrowsAsync<NotImplementedException>(
-            () => client.GetResponseAsync([]));
-    }
+        public bool IsAvailable() => true;
 
-    [Fact]
-    public async Task GetStreamingResponseAsync_ThrowsNotImplementedException_WhenBridgeNotReady()
-    {
-        using var client = new AppleIntelligenceChatClient(new PassingPlatformValidator());
+        public string Complete(string messagesJson)
+        {
+            LastMessagesJson = messagesJson;
+            CompletionCallCount++;
 
-        await Assert.ThrowsAsync<NotImplementedException>(
-            async () =>
+            if (CompletionException is not null)
             {
-                await foreach (var _ in client.GetStreamingResponseAsync([])) { }
-            });
+                throw CompletionException;
+            }
+
+            return CompletionResult;
+        }
+
+        public async IAsyncEnumerable<string> CompleteStreaming(string messagesJson)
+        {
+            LastMessagesJson = messagesJson;
+            StreamingCallCount++;
+
+            if (StreamingException is not null)
+            {
+                throw StreamingException;
+            }
+
+            foreach (var chunk in StreamingChunks)
+            {
+                yield return chunk;
+                await Task.Yield();
+            }
+        }
     }
 }

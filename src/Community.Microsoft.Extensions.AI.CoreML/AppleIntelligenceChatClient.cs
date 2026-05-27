@@ -1,4 +1,7 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.AI;
+using Community.Microsoft.Extensions.AI.CoreML.Interop;
 
 namespace Community.Microsoft.Extensions.AI.CoreML;
 
@@ -8,6 +11,12 @@ namespace Community.Microsoft.Extensions.AI.CoreML;
 /// </summary>
 public sealed class AppleIntelligenceChatClient : IChatClient
 {
+    private static readonly JsonSerializerOptions s_jsonOptions = new()
+    {
+        PropertyNamingPolicy = null,
+    };
+
+    private readonly IAppleIntelligenceBridge _bridge;
     private bool _disposed;
 
     /// <summary>
@@ -21,8 +30,18 @@ public sealed class AppleIntelligenceChatClient : IChatClient
 
     /// <summary>Internal constructor that accepts a validator seam for testing.</summary>
     internal AppleIntelligenceChatClient(IPlatformValidator validator)
+        : this(validator, new NativeAppleIntelligenceBridge())
     {
+    }
+
+    /// <summary>Internal constructor that accepts bridge and platform seams for testing.</summary>
+    internal AppleIntelligenceChatClient(IPlatformValidator validator, IAppleIntelligenceBridge bridge)
+    {
+        ArgumentNullException.ThrowIfNull(validator);
+        ArgumentNullException.ThrowIfNull(bridge);
+
         validator.ThrowIfNotSupported();
+        _bridge = bridge;
     }
 
     /// <inheritdoc/>
@@ -32,17 +51,35 @@ public sealed class AppleIntelligenceChatClient : IChatClient
         CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        throw new NotImplementedException("Native bridge not yet implemented.");
+        ArgumentNullException.ThrowIfNull(messages);
+
+        return Task.Run(
+            () =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var responseText = _bridge.Complete(SerializeMessages(messages, options));
+                return new ChatResponse(new ChatMessage(ChatRole.Assistant, responseText));
+            },
+            cancellationToken);
     }
 
     /// <inheritdoc/>
-    public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+    public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
-        CancellationToken cancellationToken = default)
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        throw new NotImplementedException("Native bridge not yet implemented.");
+        ArgumentNullException.ThrowIfNull(messages);
+
+        await foreach (var chunk in _bridge
+            .CompleteStreaming(SerializeMessages(messages, options))
+            .WithCancellation(cancellationToken)
+            .ConfigureAwait(false))
+        {
+            yield return new ChatResponseUpdate(ChatRole.Assistant, chunk);
+        }
     }
 
     /// <inheritdoc/>
@@ -54,4 +91,77 @@ public sealed class AppleIntelligenceChatClient : IChatClient
     {
         _disposed = true;
     }
+
+    private static string SerializeMessages(IEnumerable<ChatMessage> messages, ChatOptions? options)
+    {
+        var serializedMessages = new List<BridgeMessage>();
+        var systemParts = new List<string>();
+
+        AddInstructions(systemParts, options?.Instructions);
+
+        foreach (var message in messages)
+        {
+            if (message.Role == ChatRole.System)
+            {
+                AddText(systemParts, message.Text);
+                continue;
+            }
+
+            if (message.Role != ChatRole.User && message.Role != ChatRole.Assistant)
+            {
+                continue;
+            }
+
+            serializedMessages.Add(new BridgeMessage(message.Role.Value, message.Text ?? string.Empty));
+        }
+
+        if (systemParts.Count > 0)
+        {
+            serializedMessages.Insert(0, new BridgeMessage(ChatRole.System.Value, string.Join("\n\n", systemParts)));
+        }
+
+        return JsonSerializer.Serialize(serializedMessages, s_jsonOptions);
+    }
+
+    private static void AddInstructions(List<string> systemParts, object? instructions)
+    {
+        switch (instructions)
+        {
+            case null:
+                return;
+
+            case string instruction:
+                AddText(systemParts, instruction);
+                return;
+
+            case IEnumerable<string> enumerable:
+                foreach (var instruction in enumerable)
+                {
+                    AddText(systemParts, instruction);
+                }
+                return;
+
+            case IEnumerable<object?> enumerable:
+                foreach (var instruction in enumerable)
+                {
+                    if (instruction is string text)
+                    {
+                        AddText(systemParts, text);
+                    }
+                }
+                return;
+        }
+    }
+
+    private static void AddText(List<string> parts, string? text)
+    {
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            parts.Add(text);
+        }
+    }
+
+    private sealed record BridgeMessage(
+        [property: JsonPropertyName("role")] string Role,
+        [property: JsonPropertyName("content")] string Content);
 }

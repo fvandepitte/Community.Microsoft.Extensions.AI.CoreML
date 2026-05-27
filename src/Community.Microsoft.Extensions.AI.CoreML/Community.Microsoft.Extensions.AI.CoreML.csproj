@@ -5,6 +5,7 @@
     <RootNamespace>Community.Microsoft.Extensions.AI.CoreML</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>

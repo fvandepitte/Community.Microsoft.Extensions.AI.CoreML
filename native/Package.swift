@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.2
 import PackageDescription
 
 let package = Package(
@@ -7,7 +7,7 @@ let package = Package(
         // FoundationModels was introduced in macOS 15 (Sequoia).
         // Full Apple Intelligence (on-device LLM) requires macOS 26+.
         // The runtime aib_is_available() check gates actual usage.
-        .macOS(.v15),
+        .macOS(.v13),
     ],
     products: [
         .library(
