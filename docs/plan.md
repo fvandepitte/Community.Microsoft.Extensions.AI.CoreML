@@ -188,12 +188,13 @@ Current status: 19 unit tests passing.
 
 ---
 
-## Phase 6 — NuGet Packaging ⬜
+## Phase 6 — NuGet Packaging 🔄
 
-- [ ] Add `<PackageId>`, `<Authors>`, `<Description>`, `<PackageTags>` to `.csproj`
-- [ ] Add `<PackageLicenseExpression>MIT</PackageLicenseExpression>`
-- [ ] Add `<RepositoryUrl>` and `<PackageReadmeFile>`
-- [ ] Ensure the `runtimes/osx-arm64/native/` dylib is included in the NuGet package
+- [x] Add `<PackageId>`, `<Authors>`, `<Description>`, `<PackageTags>` to `.csproj`
+- [x] Add `<PackageLicenseExpression>MIT</PackageLicenseExpression>`
+- [x] Add `<RepositoryUrl>` and `<PackageReadmeFile>`
+- [x] Ensure the `runtimes/osx-arm64/native/` dylib is included in the NuGet package
+- [x] Generate symbols package (`.snupkg`) and XML docs
 - [ ] Publish to NuGet.org (manual initially, automate via GitHub Actions later)
 
 ---

@@ -12,13 +12,12 @@ Console.WriteLine(response);
 
 Console.WriteLine("\n==== AI Agent with tools ====");
 
-[Description("Get the weather for a given location.")]
-static string GetWeather([Description("The location to get the weather for.")] string location)
-    => $"The weather in {location} is cloudy with a high of 15°C.";
+string GetWeather(string location) => $"It is cloudy in {location} with a high of 15°C.";
 
-AIAgent agent = client.AsAIAgent(
-    name: "WeatherAgent",
-    instructions: "You are a weather assistant.",
-    tools: [AIFunctionFactory.Create(GetWeather)]);
+var agent = new AppleIntelligenceChatClient()
+    .AsAIAgent(
+        name: "WeatherAgent",
+        instructions: "You are a helpful, but talkative weather assistant.",
+        tools: [AIFunctionFactory.Create(GetWeather, "GetWeather", "Get the weather for a given location.")]);
 
 Console.WriteLine(await agent.RunAsync("What's the weather in New York?"));

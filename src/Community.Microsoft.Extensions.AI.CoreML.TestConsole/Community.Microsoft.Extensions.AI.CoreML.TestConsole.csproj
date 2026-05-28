@@ -1,10 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\Community.Microsoft.Extensions.AI.CoreML\Community.Microsoft.Extensions.AI.CoreML.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
+    <PackageReference Include="Community.Microsoft.Extensions.AI.CoreML" Version="0.1.0-preview1" />
     <PackageReference Include="Microsoft.Agents.AI" Version="1.7.0" />
     <PackageReference Include="Microsoft.Extensions.AI" Version="10.6.0" />
   </ItemGroup>

@@ -8,7 +8,7 @@ BUILD_OUTPUT   := $(BRIDGE_DIR)/.build/release/$(DYLIB_NAME)
 DEVELOPER_DIR  := $(shell xcode-select -p 2>/dev/null || true)
 SWIFT_VERSION  := $(shell swift --version 2>/dev/null | head -n 1)
 
-.PHONY: bridge clean
+.PHONY: bridge clean pack
 
 ## bridge: compile the Swift dylib and copy it into the NuGet runtime assets path
 bridge:
@@ -29,3 +29,14 @@ bridge:
 clean:
 	cd $(BRIDGE_DIR) && swift package clean
 	rm -f "$(OUTPUT_DIR)/$(DYLIB_NAME)"
+	rm -rf artifacts/nuget
+
+## pack: build the bridge and produce the NuGet package into artifacts/nuget
+pack: bridge
+	@echo "→ Packing NuGet..."
+	@rm -rf artifacts/nuget
+	dotnet pack src/Community.Microsoft.Extensions.AI.CoreML/Community.Microsoft.Extensions.AI.CoreML.csproj \
+		-c Release \
+		-o artifacts/nuget
+	@echo "✓ artifacts/nuget/"
+	@ls -1 artifacts/nuget/
