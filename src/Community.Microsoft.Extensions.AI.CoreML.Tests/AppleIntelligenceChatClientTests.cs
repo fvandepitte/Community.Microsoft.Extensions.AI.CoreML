@@ -173,6 +173,29 @@ public class AppleIntelligenceChatClientTests
             });
     }
 
+    [Fact]
+    public async Task GetResponseAsync_PopulatesAppleIntelligenceModelId()
+    {
+        var bridge = new FakeBridge { CompletionResult = "ok" };
+        using var client = new AppleIntelligenceChatClient(new PassingPlatformValidator(), bridge);
+
+        var response = await client.GetResponseAsync([new ChatMessage(ChatRole.User, "Hi")]);
+
+        Assert.Equal("apple-intelligence", response.ModelId);
+    }
+
+    [Fact]
+    public async Task GetStreamingResponseAsync_PopulatesAppleIntelligenceModelId()
+    {
+        var bridge = new FakeBridge { StreamingChunks = ["a", "b"] };
+        using var client = new AppleIntelligenceChatClient(new PassingPlatformValidator(), bridge);
+
+        await foreach (var update in client.GetStreamingResponseAsync([new ChatMessage(ChatRole.User, "Hi")]))
+        {
+            Assert.Equal("apple-intelligence", update.ModelId);
+        }
+    }
+
     private sealed class FakeBridge : IAppleIntelligenceBridge
     {
         public string? LastMessagesJson { get; private set; }

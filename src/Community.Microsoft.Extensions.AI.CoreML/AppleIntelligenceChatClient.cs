@@ -13,6 +13,8 @@ namespace Community.Microsoft.Extensions.AI.CoreML;
 /// </summary>
 public sealed class AppleIntelligenceChatClient : IChatClient
 {
+    private const string ModelIdValue = "apple-intelligence";
+
     private static readonly JsonSerializerOptions s_jsonOptions = new()
     {
         PropertyNamingPolicy = null,
@@ -92,7 +94,7 @@ public sealed class AppleIntelligenceChatClient : IChatClient
                 continue;
             }
 
-            yield return new ChatResponseUpdate(ChatRole.Assistant, chunk);
+            yield return new ChatResponseUpdate(ChatRole.Assistant, chunk) { ModelId = ModelIdValue };
         }
 
         if (buffer is null)
@@ -105,12 +107,13 @@ public sealed class AppleIntelligenceChatClient : IChatClient
         {
             yield return new ChatResponseUpdate(ChatRole.Assistant, new List<AIContent> { call })
             {
+                ModelId = ModelIdValue,
                 FinishReason = ChatFinishReason.ToolCalls,
             };
         }
         else if (!string.IsNullOrEmpty(responseText))
         {
-            yield return new ChatResponseUpdate(ChatRole.Assistant, responseText);
+            yield return new ChatResponseUpdate(ChatRole.Assistant, responseText) { ModelId = ModelIdValue };
         }
     }
 
@@ -442,6 +445,7 @@ public sealed class AppleIntelligenceChatClient : IChatClient
             // FunctionCallContent so the agent loop doesn't leak JSON to the user.
             return new ChatResponse(new ChatMessage(ChatRole.Assistant, new List<AIContent> { call }))
             {
+                ModelId = ModelIdValue,
                 FinishReason = ChatFinishReason.ToolCalls,
             };
         }
@@ -453,10 +457,16 @@ public sealed class AppleIntelligenceChatClient : IChatClient
         {
             return new ChatResponse(new ChatMessage(
                 ChatRole.Assistant,
-                "I'm not able to answer that with the information I have."));
+                "I'm not able to answer that with the information I have."))
+            {
+                ModelId = ModelIdValue,
+            };
         }
 
-        return new ChatResponse(new ChatMessage(ChatRole.Assistant, responseText));
+        return new ChatResponse(new ChatMessage(ChatRole.Assistant, responseText))
+        {
+            ModelId = ModelIdValue,
+        };
     }
 
     private static bool LooksLikeToolCallAttempt(string responseText, ChatOptions? options)

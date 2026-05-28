@@ -11,6 +11,9 @@
   <ItemGroup>
     <!-- Library implementations should reference Abstractions only, not the full Microsoft.Extensions.AI package -->
     <PackageReference Include="Microsoft.Extensions.AI.Abstractions" Version="10.6.0" />
+    <!-- Needed for IChatClientBuilder / AddChatClient pipeline integration in the DI extension -->
+    <PackageReference Include="Microsoft.Extensions.AI" Version="10.6.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.8" />
   </ItemGroup>
 
   <ItemGroup>

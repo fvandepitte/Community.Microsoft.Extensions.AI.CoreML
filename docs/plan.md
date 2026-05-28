@@ -132,7 +132,7 @@ Where `entitlements.plist` contains:
 
 ---
 
-## Phase 3 — `IChatClient` Implementation 🔄
+## Phase 3 — `IChatClient` Implementation ✅
 
 ### 3.1 `AppleIntelligenceChatClient` ✅
 
@@ -150,15 +150,16 @@ Where `entitlements.plist` contains:
 
 ### 3.3 Metadata
 
-- [ ] Populate `ChatResponse.ModelId` with `"apple-intelligence"` (or the actual model identifier if the API exposes one)
+- [x] Populate `ChatResponse.ModelId` with `"apple-intelligence"` (constant `ModelIdValue`)
 - [ ] Populate `Usage` if the framework provides token counts
 
 ---
 
-## Phase 4 — DI Integration ⬜
+## Phase 4 — DI Integration ✅
 
-- [ ] `ServiceCollectionExtensions.cs` — `AddAppleIntelligence()` extension that registers `IChatClient` as a singleton
-- [ ] Respect the `IChatClientBuilder` pipeline (middleware support)
+- [x] `ServiceCollectionExtensions.cs` — `AddAppleIntelligenceChatClient()` extension that registers `IChatClient` and returns a `ChatClientBuilder`
+- [x] `AddKeyedAppleIntelligenceChatClient(object?)` for keyed DI registration
+- [x] Respect the `ChatClientBuilder` pipeline (middleware support)
 
 ---
 
@@ -176,7 +177,7 @@ Where `entitlements.plist` contains:
 - [x] Test message formatting / system instruction merge
 - [x] Test error propagation from bridge
 
-Current status: 11 unit tests passing.
+Current status: 19 unit tests passing.
 
 ### 5.2 Integration tests (macOS arm64 only)
 
