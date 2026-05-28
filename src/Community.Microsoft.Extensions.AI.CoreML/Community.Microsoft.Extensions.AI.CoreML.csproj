@@ -20,10 +20,17 @@
   <ItemGroup>
     <!-- Bundle the native bridge dylib for macOS arm64 in the NuGet package.
          Run 'make bridge' from the repo root to build the dylib before packing. -->
-    <None Include="runtimes\osx-arm64\native\libAppleIntelligenceBridge.dylib"
-          Condition="Exists('runtimes\osx-arm64\native\libAppleIntelligenceBridge.dylib')"
+      <None Include="runtimes/osx-arm64/native/libAppleIntelligenceBridge.dylib"
+      Condition="Exists('runtimes/osx-arm64/native/libAppleIntelligenceBridge.dylib')"
           Pack="true"
-          PackagePath="runtimes/osx-arm64/native/" />
+      PackagePath="runtimes/osx-arm64/native/" />
+
+      <!-- For local project-reference usage (e.g. TestConsole), place the dylib
+        next to the app executable so LibraryImport can load it directly. -->
+      <Content Include="runtimes/osx-arm64/native/libAppleIntelligenceBridge.dylib"
+         Condition="Exists('runtimes/osx-arm64/native/libAppleIntelligenceBridge.dylib')"
+         CopyToOutputDirectory="PreserveNewest"
+         TargetPath="libAppleIntelligenceBridge.dylib" />
   </ItemGroup>
 
 </Project>

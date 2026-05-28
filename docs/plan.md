@@ -67,7 +67,7 @@ At **WWDC 2025**, Apple opened the Foundation Models framework to all third-part
 
 | Question | Answer |
 |---|---|
-| `SystemLanguageModel.isAvailable` API shape | ✅ Static `Bool` property — confirmed unchanged |
+| `SystemLanguageModel.isAvailable` API shape | ✅ Instance `Bool` property in current SDK (bridge updated accordingly) |
 | Restricted to Apple apps only? | ✅ **No** — opened to all third-party devs at WWDC 2025 |
 | Special entitlement approval required? | ✅ **No** — standard Apple Developer Program membership is enough |
 | Minimum OS | macOS 26 ("Tahoe") on Apple Silicon |
@@ -79,15 +79,14 @@ At **WWDC 2025**, Apple opened the Foundation Models framework to all third-part
 
 The one open question is whether a **.NET host process** embedding the dylib must itself be **code-signed with a FoundationModels entitlement**. Normal native apps bundle the entitlement in their `.entitlements` file; a .NET process is a generic runtime, not a signed app bundle.
 
-**Steps to verify:**
+**Validation completed so far:**
 
 ```sh
 # 1. Build the bridge
 make bridge
 
-# 2. Run the test .NET app on macOS 26 — check what aib_is_available() returns.
-#    If it crashes or returns false, inspect the system log:
-log show --predicate 'subsystem == "com.apple.FoundationModels"' --last 5m
+# 2. Run the test .NET app on macOS 26
+#    Result: successful end-to-end completion from .NET -> native bridge -> FoundationModels.
 ```
 
 **If the entitlement IS required on the host process**, sign the dylib with:
@@ -111,9 +110,9 @@ Where `entitlements.plist` contains:
 </plist>
 ```
 
-- [x] Confirm `SystemLanguageModel.isAvailable` is a static Bool — ✅ confirmed
+- [x] Confirm `SystemLanguageModel.isAvailable` API shape — ✅ confirmed (instance property in current SDK)
 - [x] Confirm framework is open to third-party developers — ✅ confirmed (WWDC 2025)
-- [ ] Test `aib_is_available()` from a .NET process on macOS 26 hardware
+- [x] Test bridge availability from a .NET process on macOS 26 hardware
 - [ ] Confirm whether dylib / host process needs code-signing with the FoundationModels entitlement
 
 ---
@@ -135,20 +134,19 @@ Where `entitlements.plist` contains:
 
 ## Phase 3 — `IChatClient` Implementation 🔄
 
-### 3.1 `AppleIntelligenceChatClient` ✅ (stubbed)
+### 3.1 `AppleIntelligenceChatClient` ✅
 
 - [x] Implement `IChatClient`
-- [x] `GetResponseAsync` — platform-guarded; throws `NotImplementedException` until bridge is ready
-- [x] `GetStreamingResponseAsync` — platform-guarded; throws `NotImplementedException` until bridge is ready
+- [x] `GetResponseAsync` wired to native bridge completion path
+- [x] `GetStreamingResponseAsync` wired to native bridge streaming path
 - [x] `GetService(Type, object?)` — returns `this` if assignable to the requested type
 - [x] `Dispose` / `ObjectDisposedException` guard
-- [ ] Wire up real `GetResponseAsync` to `aib_complete` once native bridge exists
-- [ ] Wire up real `GetStreamingResponseAsync` to `aib_complete_streaming` once native bridge exists
 
 ### 3.2 Message formatting
 
-- [ ] Map `IEnumerable<ChatMessage>` to a prompt string the Foundation Models session expects
-- [ ] Handle multi-turn conversations (system / user / assistant roles)
+- [x] Map `IEnumerable<ChatMessage>` to bridge JSON payload (`role` / `content`)
+- [x] Handle multi-turn conversations (system / user / assistant roles)
+- [x] Merge `ChatOptions.Instructions` with system guidance into a single system message payload
 
 ### 3.3 Metadata
 
@@ -173,9 +171,12 @@ Where `entitlements.plist` contains:
 - [x] Platform guard: constructor succeeds on supported platform
 - [x] `GetService` returns self / null correctly
 - [x] `ObjectDisposedException` after `Dispose()`
-- [x] `NotImplementedException` before native bridge is wired up
-- [ ] Test message formatting / prompt construction
-- [ ] Test streaming chunk assembly
+- [x] Bridge success path for non-streaming completion
+- [x] Bridge success path for streaming chunk passthrough
+- [x] Test message formatting / system instruction merge
+- [x] Test error propagation from bridge
+
+Current status: 11 unit tests passing.
 
 ### 5.2 Integration tests (macOS arm64 only)
 

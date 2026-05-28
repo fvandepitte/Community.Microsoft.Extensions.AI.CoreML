@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform: macOS 26+ (Apple Silicon)](https://img.shields.io/badge/platform-macOS%2026%2B%20Apple%20Silicon-blue)](https://developer.apple.com/documentation/foundationmodels)
 
-> **Use Apple Intelligence on-device models directly from .NET — no MAUI, no cloud, no API keys.**
+> **Use Apple Intelligence on-device models directly from .NET**
 
 ---
 

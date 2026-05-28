@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.ComponentModel;
 using Community.Microsoft.Extensions.AI.CoreML;
 using Community.Microsoft.Extensions.AI.CoreML.Interop;
 using Microsoft.Extensions.AI;
@@ -94,7 +95,7 @@ public class AppleIntelligenceChatClientTests
             new ChatOptions { Instructions = "extra guidance" });
 
         using var document = JsonDocument.Parse(bridge.LastMessagesJson!);
-        var messages = document.RootElement.EnumerateArray().ToArray();
+        var messages = document.RootElement.GetProperty("messages").EnumerateArray().ToArray();
 
         Assert.Equal(2, messages.Length);
         Assert.Equal("system", messages[0].GetProperty("role").GetString());
@@ -102,6 +103,39 @@ public class AppleIntelligenceChatClientTests
         var systemContent = messages[0].GetProperty("content").GetString();
         Assert.Contains("existing guidance", systemContent);
         Assert.Contains("extra guidance", systemContent);
+    }
+
+    [Fact]
+    public async Task GetResponseAsync_IncludesToolMetadata_InSerializedSystemPayload()
+    {
+        var bridge = new FakeBridge { CompletionResult = "ok" };
+        using var client = new AppleIntelligenceChatClient(new PassingPlatformValidator(), bridge);
+
+        [Description("Get weather by location")]
+        static string GetWeather(string location) => $"Cloudy in {location}";
+
+        await client.GetResponseAsync(
+            [new ChatMessage(ChatRole.User, "What is the weather in New York?")],
+            new ChatOptions
+            {
+                Tools = [AIFunctionFactory.Create(GetWeather, "GetWeather")],
+                ToolMode = ChatToolMode.Auto,
+            });
+
+        using var document = JsonDocument.Parse(bridge.LastMessagesJson!);
+        var messages = document.RootElement.GetProperty("messages").EnumerateArray().ToArray();
+
+        Assert.Equal("system", messages[0].GetProperty("role").GetString());
+
+        var systemContent = messages[0].GetProperty("content").GetString();
+        Assert.Contains("tool_calls", systemContent);
+        Assert.Contains("GetWeather", systemContent);
+        Assert.Contains("Tool mode", systemContent);
+
+        var tools = document.RootElement.GetProperty("tools").EnumerateArray().ToArray();
+        Assert.Single(tools);
+        Assert.Equal("GetWeather", tools[0].GetProperty("name").GetString());
+        Assert.Equal(JsonValueKind.Object, tools[0].GetProperty("parameters").ValueKind);
     }
 
     [Fact]
