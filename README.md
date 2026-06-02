@@ -34,6 +34,7 @@ flowchart LR
 Supports plain completions, streaming, multi-turn conversations, **and tool / function calling** (compatible with `Microsoft.Agents.AI`).
 
 For a deeper look at the design, see [docs/architecture.md](docs/architecture.md).
+For release automation and publishing steps, see [docs/releasing.md](docs/releasing.md).
 
 ---
 

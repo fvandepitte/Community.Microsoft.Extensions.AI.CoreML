@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore library
+        run: dotnet restore src/Community.Microsoft.Extensions.AI.CoreML/Community.Microsoft.Extensions.AI.CoreML.csproj
+
+      - name: Build library
+        run: dotnet build src/Community.Microsoft.Extensions.AI.CoreML/Community.Microsoft.Extensions.AI.CoreML.csproj --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test src/Community.Microsoft.Extensions.AI.CoreML.Tests/Community.Microsoft.Extensions.AI.CoreML.Tests.csproj --configuration Release --no-restore

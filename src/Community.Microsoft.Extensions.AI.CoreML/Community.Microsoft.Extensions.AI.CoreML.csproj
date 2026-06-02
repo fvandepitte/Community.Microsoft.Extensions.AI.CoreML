@@ -11,7 +11,7 @@
   <!-- NuGet package metadata -->
   <PropertyGroup>
     <PackageId>Community.Microsoft.Extensions.AI.CoreML</PackageId>
-    <Version>0.1.0-preview1</Version>
+    <Version Condition="'$(Version)' == ''">0.1.0-preview1</Version>
     <Authors>Frederiek Vandepitte and contributors</Authors>
     <Company>Community</Company>
     <Description>An IChatClient implementation for Microsoft.Extensions.AI that calls Apple's on-device Foundation Models (Apple Intelligence) directly from .NET via P/Invoke. macOS 26+ on Apple Silicon. No MAUI, no HTTP server.</Description>

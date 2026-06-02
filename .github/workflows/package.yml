@@ -1,0 +1,56 @@
+name: Package
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Package version override (for example: 1.2.3 or 1.2.3-preview1)
+        required: false
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version override (for example: 1.2.3 or 1.2.3-preview1)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: macos-latest-xlarge
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build native bridge
+        run: make bridge
+
+      - name: Pack NuGet package
+        shell: bash
+        run: |
+          mkdir -p artifacts/nuget
+          PACK_ARGS=(
+            "-c" "Release"
+            "-o" "artifacts/nuget"
+            "-p:ContinuousIntegrationBuild=true"
+          )
+
+          if [ -n "${{ inputs.version }}" ]; then
+            PACK_ARGS+=("-p:Version=${{ inputs.version }}")
+          fi
+
+          dotnet pack src/Community.Microsoft.Extensions.AI.CoreML/Community.Microsoft.Extensions.AI.CoreML.csproj "${PACK_ARGS[@]}"
+
+      - name: Upload NuGet artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts/nuget/*
+          if-no-files-found: error
