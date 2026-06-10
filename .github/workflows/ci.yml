@@ -24,6 +24,9 @@ jobs:
       - name: Restore library
         run: dotnet restore src/Community.Microsoft.Extensions.AI.CoreML/Community.Microsoft.Extensions.AI.CoreML.csproj
 
+      - name: Restore tests
+        run: dotnet restore src/Community.Microsoft.Extensions.AI.CoreML.Tests/Community.Microsoft.Extensions.AI.CoreML.Tests.csproj
+
       - name: Build library
         run: dotnet build src/Community.Microsoft.Extensions.AI.CoreML/Community.Microsoft.Extensions.AI.CoreML.csproj --configuration Release --no-restore
 
